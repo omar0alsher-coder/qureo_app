@@ -12,9 +12,13 @@ jobs:
 
       - name: Build APK
         run: |
-          # تثبيت أدوات البناء الأساسية عشان نضمن وجود aidl
-          sdkmanager "build-tools;34.0.0" || true
-          # تشغيل البناء
+          # 1. إنشاء ملف الترخيص مسبقاً عشان Buildozer يقبله أوتوماتيك وميسألش
+          mkdir -p /github/home/.android
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > /github/home/.android/android-sdk-license
+          echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> /github/home/.android/android-sdk-license
+          echo "8933bad161af4178b1185d1a37fbf41ea5269c55" >> /github/home/.android/android-sdk-license
+          
+          # 2. تشغيل البناء
           buildozer -v android debug
 
       - name: Upload APK
