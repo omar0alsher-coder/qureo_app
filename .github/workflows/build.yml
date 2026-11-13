@@ -12,11 +12,7 @@ jobs:
 
       - name: Build APK
         run: |
-          # 1. إجبار السيرفر على الموافقة على تراخيص أندرويد (عشان build-tools ينزل)
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          
-          # 2. تشغيل البناء مع إجبار الموافقة على أي شيء بيطلب y/N
-          yes | buildozer -v android debug
+          buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
