@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Qureo Premium Dashboard</title>
+    <title>Qureo Premium</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -15,13 +15,8 @@
         .chapter-card:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); z-index: 10; }
         #logTerminal { font-family: monospace; direction: ltr; text-align: left; font-size: 13px; line-height: 1.6; }
         #logTerminal div { border-bottom: 1px solid #1e293b; padding: 2px 0; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
         .log-header { color: #c084fc; font-weight: bold; margin-top: 8px; border-top: 1px solid #334155; padding-top: 5px; }
         .log-info { color: #60a5fa; }
-        .log-q { color: #fbbf24; }
-        .log-a { color: #34d399; }
         .log-success { color: #10b981; font-weight: bold; }
         .log-error { color: #f87171; font-weight: bold; }
         .log-warn { color: #facc15; }
@@ -32,7 +27,8 @@
     <script>
         function initIcons() { lucide.createIcons(); }
         const app = document.getElementById('app');
-        let currentCookies = '';
+        let currentId = '';
+        let currentPwd = '';
         let chaptersData = [];
 
         function renderLogin(errorMsg = '') {
@@ -46,33 +42,26 @@
                                 <i data-lucide="shield" class="w-8 h-8 text-blue-400"></i>
                             </div>
                             <h1 class="text-3xl font-bold text-white mb-2">Qureo Premium</h1>
-                            <p class="text-slate-400 text-sm">أفضل أداة لحل المراحل بضمان 100%</p>
+                            <p class="text-slate-400 text-sm">سجل دخولك بحساب المنصة مباشرة</p>
                         </div>
                         ${errorMsg ? `<div class="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg mb-4 text-sm text-center">${errorMsg}</div>` : ''}
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-slate-300 mb-1">التوكن (Cookie)</label>
-                                <div class="relative">
-                                    <i data-lucide="key" class="absolute right-3 top-3 w-5 h-5 text-slate-500"></i>
-                                    <textarea id="cookieInput" rows="2" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 pr-10 pl-4 text-white focus:outline-none focus:border-blue-500 transition-colors text-sm" placeholder="i18next=ar; egy_student_access_token=..."></textarea>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-300 mb-1">رقم الطالب (ID)</label>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">رقم الطالب (Login ID)</label>
                                 <div class="relative">
                                     <i data-lucide="user" class="absolute right-3 top-3 w-5 h-5 text-slate-500"></i>
                                     <input type="text" id="studentId" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 pr-10 pl-4 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="477650905" />
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-slate-300 mb-1">كلمة المرور</label>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">كلمة المرور (Password)</label>
                                 <div class="relative">
                                     <i data-lucide="key" class="absolute right-3 top-3 w-5 h-5 text-slate-500"></i>
                                     <input type="password" id="password" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 pr-10 pl-4 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="********" />
                                 </div>
                             </div>
                             <button id="loginBtn" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl transition-all flex justify-center items-center gap-2 mt-6">
-                                <span>دخول للمنصة</span>
+                                <span>تسجيل الدخول</span>
                                 <i data-lucide="arrow-left" class="w-5 h-5"></i>
                             </button>
                         </div>
@@ -81,17 +70,17 @@
             `;
             initIcons();
             document.getElementById('loginBtn').addEventListener('click', async () => {
-                const cookies = document.getElementById('cookieInput').value;
                 const id = document.getElementById('studentId').value;
-                if(!cookies || !id) { renderLogin("الرجاء إدخال التوكن ورقم الطالب"); return; }
+                const pwd = document.getElementById('password').value;
+                if(!id || !pwd) { renderLogin("الرجاء إدخال رقم الطالب وكلمة المرور"); return; }
                 const btn = document.getElementById('loginBtn');
                 btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i><span>جاري الدخول...</span>`;
                 initIcons();
                 try {
-                    const res = await fetch('/api/status', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({cookies}) });
+                    const res = await fetch('/api/status', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({student_id: id, password: pwd}) });
                     const data = await res.json();
                     if(!res.ok) throw new Error(data.error || "فشل الاتصال");
-                    currentCookies = cookies; chaptersData = data.chapters; renderDashboard(data);
+                    currentId = id; currentPwd = pwd; chaptersData = data.chapters; renderDashboard(data);
                 } catch(e) { renderLogin(e.message); }
             });
         }
@@ -120,7 +109,6 @@
                             <div><h2 class="text-2xl font-bold text-white mb-1">المراحل</h2><p class="text-sm text-slate-400">أكمل جميع المراحل (1 - 42) بضمان 100%</p></div>
                             <div class="flex flex-wrap gap-3 w-full md:w-auto">
                                 <button id="toggleLogsBtn" class="flex-1 md:flex-none px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl border border-slate-700 flex items-center justify-center gap-2"><i data-lucide="terminal" class="w-5 h-5"></i> <span>السجل</span></button>
-                                <button id="makePerfectBtn" class="flex-1 md:flex-none px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-xl shadow-lg shadow-purple-900/20 flex items-center justify-center gap-2"><i data-lucide="crown" class="w-5 h-5"></i> <span>اجعل الكل PERFECT</span></button>
                                 <button id="solveAllBtn" class="flex-1 md:flex-none px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2"><i data-lucide="play" class="w-5 h-5 fill-current"></i> <span>حل الكل (1-42)</span></button>
                             </div>
                         </div>
@@ -156,19 +144,14 @@
                 grid.appendChild(div);
             });
             initIcons();
-            document.getElementById('logoutBtn').addEventListener('click', () => { currentCookies = ''; chaptersData = []; renderLogin(); });
+            document.getElementById('logoutBtn').addEventListener('click', () => { currentId = ''; currentPwd = ''; chaptersData = []; renderLogin(); });
             const logsContainer = document.getElementById('logsContainer');
             document.getElementById('toggleLogsBtn').addEventListener('click', () => { logsContainer.classList.toggle('hidden'); logsContainer.classList.toggle('flex'); });
             document.getElementById('closeLogsBtn').addEventListener('click', () => { logsContainer.classList.add('hidden'); logsContainer.classList.remove('flex'); });
-            document.getElementById('makePerfectBtn').addEventListener('click', () => {
-                if(!window.confirm("هيتم إعادة حل كل المراحل اللي مش PERFECT. متأكد؟")) return;
-                logsContainer.classList.remove('hidden'); logsContainer.classList.add('flex');
-                streamResponse(`/api/solve_all?mode=perfect&cookies=${encodeURIComponent(currentCookies)}`);
-            });
             document.getElementById('solveAllBtn').addEventListener('click', () => {
                 if(!window.confirm("هل أنت متأكد من حل جميع المراحل 1-42؟")) return;
                 logsContainer.classList.remove('hidden'); logsContainer.classList.add('flex');
-                streamResponse(`/api/solve_all?mode=all&cookies=${encodeURIComponent(currentCookies)}`);
+                streamResponse(`/api/solve_all?student_id=${encodeURIComponent(currentId)}&password=${encodeURIComponent(currentPwd)}`);
             });
         }
 
@@ -197,11 +180,11 @@
         function solveOne(chapId) {
             const logsContainer = document.getElementById('logsContainer');
             logsContainer.classList.remove('hidden'); logsContainer.classList.add('flex');
-            streamResponse(`/api/solve_one?cookies=${encodeURIComponent(currentCookies)}&chapter_id=${chapId}`);
+            streamResponse(`/api/solve_one?student_id=${encodeURIComponent(currentId)}&password=${encodeURIComponent(currentPwd)}&chapter_id=${chapId}`);
         }
 
         async function refreshData() {
-            const res = await fetch('/api/status', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({cookies: currentCookies}) });
+            const res = await fetch('/api/status', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({student_id: currentId, password: currentPwd}) });
             const data = await res.json();
             if(res.ok) { chaptersData = data.chapters; document.getElementById('totalDiamonds').innerText = data.total_diamonds; renderDashboard(data); }
         }

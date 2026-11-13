@@ -6,24 +6,35 @@ from flask import Flask, request, jsonify, render_template, Response, stream_wit
 
 app = Flask(__name__)
 BASE = "https://me-tp.qureo.education"
+PORTAL = "https://me-portal.qureo.education"
 
-def get_session(cookies_str):
+def login_qureo(student_id, password):
     session = requests.Session()
-    clean_cookies = cookies_str.replace("\n", "").replace("\r", "").strip()
-    if clean_cookies:
-        for item in clean_cookies.split(';'):
-            if '=' in item:
-                key, val = item.strip().split('=', 1)
-                session.cookies.set(key, val)
-    session.headers.update({
+    headers = {
         "Content-Type": "application/json",
-        "X-Requested-With": "mark.via.gp",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Origin": BASE,
-        "Referer": f"{BASE}/",
-        "Accept": "*/*"
-    })
-    return session
+        "Origin": PORTAL,
+        "Referer": f"{PORTAL}/login",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+    payload = {"student_id": str(student_id), "password": str(password)}
+    
+    try:
+        r = session.post(f"{PORTAL}/oauth2/password-login", json=payload, headers=headers, allow_redirects=False, timeout=15)
+        if r.status_code in (200, 302):
+            # بعد الدخول بنجاح، نحدث الهيدرز عشان تناسب منصة الدراسة
+            session.headers.update({
+                "Content-Type": "application/json",
+                "X-Requested-With": "mark.via.gp",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Origin": BASE,
+                "Referer": f"{BASE}/",
+                "Accept": "*/*"
+            })
+            return session, None
+        else:
+            return None, f"تأكد من البيانات (HTTP {r.status_code})"
+    except Exception as e:
+        return None, "فشل الاتصال بالسيرفر"
 
 def smart_request(session, method, url, max_redirects=10, **kwargs):
     for _ in range(max_redirects):
@@ -37,6 +48,7 @@ def smart_request(session, method, url, max_redirects=10, **kwargs):
             if not redirect_url: return response
             if redirect_url.startswith("/"): redirect_url = BASE + redirect_url
             elif not redirect_url.startswith("http"): redirect_url = BASE + "/" + redirect_url
+            
             if response.status_code in (301, 302, 303):
                 method = "GET"; kwargs.pop("json", None); kwargs.pop("data", None)
             url = redirect_url
@@ -68,7 +80,7 @@ def solve_two_pass(session, chap_id, questions, test_type, log):
         time.sleep(0.5)
         
     time.sleep(2)
-    yield log("جلب الإجابات الصحيحة...", "info")
+    yield log("جلب الإجابات الصحيحة من السيرفر...", "info")
     r1 = smart_request(session, "GET", f"{BASE}/api/study/students/chapters/{chap_id}/{prefix}/result")
     answers = {}
     if r1.status_code == 200:
@@ -163,14 +175,23 @@ def solve_chapter_generator(session, chap_id):
 @app.route("/api/status", methods=["POST"])
 def get_status():
     data = request.json
-    session = get_session(data.get("cookies", ""))
+    student_id = data.get("student_id")
+    password = data.get("password")
+    
+    session, error = login_qureo(student_id, password)
+    if error:
+        return jsonify({"error": error}), 400
+
     u = smart_request(session, "GET", f"{BASE}/api/study/students/me")
-    if u.status_code != 200: return jsonify({"error": "فشل الاتصال"}), 400
+    if u.status_code != 200: return jsonify({"error": "فشل جلب بيانات الطالب"}), 400
     user_info = u.json()
+    
     d = smart_request(session, "GET", f"{BASE}/api/study/students/courses/javascript_ar/diamond")
     total_diamonds = d.json() if d.status_code == 200 else 0
+    
     c = smart_request(session, "GET", f"{BASE}/api/study/students/sections/5/chapters")
     progress_map = {item['chapter_id']: item for item in c.json()} if c.status_code == 200 else {}
+    
     chaps_info = smart_request(session, "GET", f"{BASE}/api/study/sections/5")
     q_map = {}
     if chaps_info.status_code == 200:
@@ -185,12 +206,16 @@ def get_status():
         q_count = q_map.get(chap_id, 5)
         badge = "PERFECT" if (score == q_count and q_count > 0) else ("CLEAR" if score > 0 else "RETRY")
         chapters.append({"id": chap_id, "num": i, "completed": "completed_at" in info, "score": score, "total_q": q_count, "diamond": diamond, "badge": badge})
+        
     return jsonify({"user_id": user_info.get("id", ""), "total_diamonds": total_diamonds, "chapters": chapters})
 
 @app.route("/api/solve_one", methods=["GET"])
 def solve_one():
     def generate():
-        session = get_session(request.args.get('cookies'))
+        session, error = login_qureo(request.args.get('student_id'), request.args.get('password'))
+        if error:
+            yield f"data: {json.dumps({'msg': f'خطأ: {error}', 'type': 'error'})}\n\n"
+            return
         yield f"data: {json.dumps({'msg': f'🚀 بدء المرحلة {request.args.get(\"chapter_id\")}...', 'type': 'header'})}\n\n"
         yield from solve_chapter_generator(session, int(request.args.get('chapter_id')))
         yield f"data: {json.dumps({'msg': 'DONE', 'type': 'done'})}\n\n"
@@ -199,7 +224,11 @@ def solve_one():
 @app.route("/api/solve_all", methods=["GET"])
 def solve_all():
     def generate():
-        session = get_session(request.args.get('cookies'))
+        session, error = login_qureo(request.args.get('student_id'), request.args.get('password'))
+        if error:
+            yield f"data: {json.dumps({'msg': f'خطأ: {error}', 'type': 'error'})}\n\n"
+            return
+            
         for i in range(1, 43):
             yield f"data: {json.dumps({'msg': f'المرحلة {i}', 'type': 'header'})}\n\n"
             yield from solve_chapter_generator(session, 90000 + i)
