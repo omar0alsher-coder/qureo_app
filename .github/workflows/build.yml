@@ -12,6 +12,9 @@ jobs:
 
       - name: Build APK
         run: |
+          # تثبيت أدوات البناء الأساسية عشان نضمن وجود aidl
+          sdkmanager "build-tools;34.0.0" || true
+          # تشغيل البناء
           buildozer -v android debug
 
       - name: Upload APK

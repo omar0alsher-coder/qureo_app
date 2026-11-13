@@ -14,10 +14,6 @@ android.minapi = 21
 android.archs = arm64-v8a, armeabi-v7a
 p4a.bootstrap = webview
 p4a.port = 8080
-p4a.branch = master
-android.ndk = 25b
-android.ndk_api = 23
-android.accept_sdk_license = True
 
 [buildozer]
 log_level = 2
