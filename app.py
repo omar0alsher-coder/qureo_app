@@ -21,7 +21,6 @@ def login_qureo(student_id, password):
     try:
         r = session.post(f"{PORTAL}/oauth2/password-login", json=payload, headers=headers, allow_redirects=False, timeout=15)
         if r.status_code in (200, 302):
-            # بعد الدخول بنجاح، نحدث الهيدرز عشان تناسب منصة الدراسة
             session.headers.update({
                 "Content-Type": "application/json",
                 "X-Requested-With": "mark.via.gp",
@@ -216,8 +215,10 @@ def solve_one():
         if error:
             yield f"data: {json.dumps({'msg': f'خطأ: {error}', 'type': 'error'})}\n\n"
             return
-        yield f"data: {json.dumps({'msg': f'🚀 بدء المرحلة {request.args.get(\"chapter_id\")}...', 'type': 'header'})}\n\n"
-        yield from solve_chapter_generator(session, int(request.args.get('chapter_id')))
+        
+        chap_id = request.args.get("chapter_id")
+        yield f"data: {json.dumps({'msg': f'🚀 بدء المرحلة {chap_id}...', 'type': 'header'})}\n\n"
+        yield from solve_chapter_generator(session, int(chap_id))
         yield f"data: {json.dumps({'msg': 'DONE', 'type': 'done'})}\n\n"
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
@@ -237,3 +238,6 @@ def solve_all():
 
 @app.route("/")
 def index(): return render_template("index.html")
+
+if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=8080, threaded=True)
