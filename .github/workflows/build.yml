@@ -35,12 +35,10 @@ jobs:
           yes | sdkmanager --licenses > /dev/null || true
           sdkmanager "platform-tools" "platforms;android-31" "build-tools;34.0.0" "ndk;25.2.9519653" > /dev/null
           
-          # 🔥 السر هنا: عمل اختصار عشان p4a يلاقي sdkmanager
+          # عمل اختصار للـ sdkmanager
           mkdir -p $HOME/android-sdk/tools/bin
           ln -s $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager $HOME/android-sdk/tools/bin/sdkmanager
           ln -s $HOME/android-sdk/cmdline-tools/latest/bin/avdmanager $HOME/android-sdk/tools/bin/avdmanager
-          ln -s $HOME/android-sdk/cmdline-tools/latest/bin/retrace $HOME/android-sdk/tools/bin/retrace
-          ln -s $HOME/android-sdk/cmdline-tools/latest/bin/lint $HOME/android-sdk/tools/bin/lint
 
       - name: Install Buildozer and Build
         env:
@@ -59,7 +57,7 @@ jobs:
           source.dir = .
           source.include_exts = py,png,jpg,kv,atlas,html,js,css
           version = 1.0
-          requirements = python3,kivy,flask,requests,urllib3,android
+          requirements = python3,flask,requests
           orientation = portrait
           fullscreen = 0
           android.permissions = INTERNET
@@ -71,7 +69,6 @@ jobs:
           p4a.branch = master
           android.sdk_path = /home/runner/android-sdk
           android.ndk_path = /home/runner/android-sdk/ndk/25.2.9519653
-          android.build_tools_version = 34.0.0
           android.accept_sdk_license = True
 
           [buildozer]
