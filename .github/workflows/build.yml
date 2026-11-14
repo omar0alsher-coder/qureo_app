@@ -6,39 +6,75 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-          
+
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          
-      - name: Install dependencies
+
+      - name: Setup Android SDK and NDK properly
         run: |
           sudo apt-get update
-          sudo apt-get install -y git zip unzip python3-pip autoconf automake libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev libltdl-dev
-          pip install --upgrade pip
-          pip install buildozer cython==0.29.36 virtualenv
-
-      - name: Pre-Accept Android SDK Licenses (Magic Step)
-        run: |
-          # إنشاء مجلد التراخيص اللي Buildozer بيدور عليه
-          mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
-          # كتابة أكواد الموافقة (عشان ميسألش وتنزل الـ build-tools وأداة aidl)
-          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-          echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-          echo "8933bad161af4178b1185d1a37fbf41ea5269c55" >> ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-
-      - name: Build APK
-        run: |
-          export PATH=$PATH:$HOME/.local/bin
-          buildozer -v android debug
+          sudo apt-get install -y git zip unzip autoconf automake libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev libltdl-dev
           
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          cd $HOME/android-sdk/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools-linux-9477386_latest.zip
+          mv cmdline-tools latest
+          cd $HOME
+          
+          export ANDROID_HOME=$HOME/android-sdk
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platform-tools" "platforms;android-31" "build-tools;34.0.0" "ndk;25.2.9519653" > /dev/null
+
+      - name: Install Buildozer and Build
+        env:
+          ANDROID_HOME: /home/runner/android-sdk
+          ANDROID_NDK_HOME: /home/runner/android-sdk/ndk/25.2.9519653
+        run: |
+          python -m pip install --upgrade pip
+          pip install buildozer cython==0.29.36 virtualenv
+          export PATH="$HOME/.local/bin:$PATH"
+          
+          # إنشاء ملف الإعدادات بمسارات ثابتة عشان ميسألش
+          cat > buildozer.spec << 'SPECEOF'
+          [app]
+          title = Qureo Premium
+          package.name = qureopremium
+          package.domain = org.qureo
+          source.dir = .
+          source.include_exts = py,png,jpg,kv,atlas,html,js,css
+          version = 1.0
+          requirements = python3,kivy,flask,requests,urllib3,android
+          orientation = portrait
+          fullscreen = 0
+          android.permissions = INTERNET
+          android.api = 31
+          android.minapi = 21
+          android.archs = arm64-v8a
+          p4a.bootstrap = webview
+          p4a.port = 8080
+          p4a.branch = master
+          android.sdk_path = /home/runner/android-sdk
+          android.ndk_path = /home/runner/android-sdk/ndk/25.2.9519653
+          android.build_tools_version = 34.0.0
+          android.accept_sdk_license = True
+
+          [buildozer]
+          log_level = 2
+          warn_on_root = 0
+          SPECEOF
+          
+          buildozer -v android debug
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
